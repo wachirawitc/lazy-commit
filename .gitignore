@@ -1,0 +1,38 @@
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
+
+# Editors and IDEs
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.swp
+*~
+_ReSharper*/
+
+# Claude Code local settings (personal, not shared)
+.claude/settings.local.json
+
+# graphify knowledge graph output
+graphify-out/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+*.pem
+
+# Logs, caches and backups
+*.log
+*.cache
+*.bak
+*.tmp
