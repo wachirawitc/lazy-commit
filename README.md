@@ -86,6 +86,8 @@ Run `/lazy-commit --init` to create `.agents/rules/git/commit-config.md` from [`
 
 The config can add rules but can't loosen the safety rules or the approval step.
 
+For a filled-in example covering every section, see [`commit-config.sample.md`](commit-config.sample.md). It is written for a monorepo with apps under `apps/`, shared libraries under `libs/` and migrations under `db/migrations/`.
+
 ## Example
 
 ```
