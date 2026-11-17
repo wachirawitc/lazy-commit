@@ -31,12 +31,13 @@ The aliases call `lazy-commit` and need it installed at `~/.claude/skills/lazy-c
 ## Usage
 
 ```
-/lazy-commit [--init [path]] [-f] [--skip-graphify] [--qa-guideline] [--deploy-guideline] [additional instructions]
+/lazy-commit [--init [path]] [--auto-setup] [-f] [--skip-graphify] [--qa-guideline] [--deploy-guideline] [additional instructions]
 ```
 
 | Option | Effect |
 |---|---|
 | `--init` | Creates `.agents/rules/git/commit-config.md` from the template and exits without committing |
+| `--auto-setup` | Creates `.agents/rules/git/commit-config.md` filled in for the current repository (scopes from its history, commitlint and release configs, generated folders, deployable projects) and exits without committing. Never changes an existing config |
 | `-f` | Commits right away without asking. Passing it counts as your approval |
 | `--skip-graphify` | Leaves changes under `graphify-out/` uncommitted |
 | `--qa-guideline` | Adds a `QA:` list of test checks to the body of each releasing commit |
@@ -50,7 +51,7 @@ Anything else you type is passed to the skill as extra instructions, for example
 2. **Ask.** Shows every commit message and file list and asks "Use these commits?". If you answer **No**, give a reason and the skill revises the proposal.
 3. **Commit.** Stages and commits each group in order, using the exact message you approved. If the changes differ from what you approved, nothing is committed and you get a new proposal.
 
-The git steps run through `lazy-commit/scripts/lazy-commit.sh` (`stage`, `plan`, `commit`, `init`), so the whole commit step is a single tool call.
+The git steps run through `lazy-commit/scripts/lazy-commit.sh` (`stage`, `plan`, `commit`, `init`, `survey`), so the whole commit step is a single tool call.
 
 ### Grouping rules
 
@@ -70,6 +71,8 @@ The git steps run through `lazy-commit/scripts/lazy-commit.sh` (`stage`, `plan`,
 ## Project config
 
 Run `/lazy-commit --init` to create `.agents/rules/git/commit-config.md` from [`lazy-commit/templates/commit-config.md`](lazy-commit/templates/commit-config.md). Every section is optional. A section you leave as its HTML comment keeps the default.
+
+Run `/lazy-commit --auto-setup` instead to get the same file already filled in for your repository. The skill surveys the tracked layout, the types and scopes of recent commits, commitlint and release configs, CI files and generated folders, then fills only the sections it has evidence for and lists what it set and why. Review the result before your next commit.
 
 | Section | Sets | Default |
 |---|---|---|
@@ -123,11 +126,11 @@ lazy-commit/
 ├── lazy-commit/
 │   ├── SKILL.md                  # main workflow
 │   ├── scripts/
-│   │   └── lazy-commit.sh        # git helper: stage, plan, commit, init
+│   │   └── lazy-commit.sh        # git helper: stage, plan, commit, init, survey
 │   ├── references/
 │   │   └── guidelines.md         # QA and Deploy body rules, read only with those options
 │   └── templates/
-│       └── commit-config.md      # template written by --init
+│       └── commit-config.md      # template written by --init and --auto-setup
 ├── lazy-commit-guidelines/
 │   └── SKILL.md                  # alias: -f --qa-guideline --deploy-guideline --skip-graphify
 └── lazy-commit-no-graphify/

@@ -2,6 +2,7 @@
 # Helper for the lazy-commit skill: the deterministic git steps of the workflow.
 #
 #   bash lazy-commit.sh init [<path>]
+#   bash lazy-commit.sh survey
 #   bash lazy-commit.sh stage  [--skip-graphify] [--secret <glob>]... [--full]
 #   bash lazy-commit.sh plan   [--skip-graphify] [--max-header <n>] [--unit <dir>/]... [--commit] < plan
 #   bash lazy-commit.sh commit [--skip-graphify]
@@ -168,6 +169,60 @@ cmd_init() {
   mkdir -p .agents/rules/git && cp "$SKILL_DIR/templates/commit-config.md" "$target" \
     || stop "Could not create .agents/rules/git/commit-config.md."
   out "Created .agents/rules/git/commit-config.md. Fill in the sections you need; a section left as its comment keeps the default."
+}
+
+# Read-only facts about the repository for --auto-setup: tracked layout, tooling files, likely
+# generated folders, the types and scopes of recent commits, and .gitignore. Writes nothing.
+cmd_survey() {
+  local n
+  g ls-files > "$TMP/files"
+  n=$(wc -l < "$TMP/files" | tr -d ' ')
+  out "--- tracked files: $n, by folder (two levels)"
+  awk -F/ '{ if (NF >= 3) u = $1 "/" $2 "/"; else if (NF == 2) u = $1 "/"; else u = "(root files)"; c[u]++ }
+    END { for (u in c) printf "%6d  %s\n", c[u], u }' "$TMP/files" | sort -k2 > "$TMP/layout"
+  head -n 150 "$TMP/layout"
+  n=$(wc -l < "$TMP/layout" | tr -d ' ')
+  [ "$n" -gt 150 ] && out "  ... $((n - 150)) more folders"
+
+  out "--- tooling files (workspaces, builds, CI, commit and release rules, AI files, migrations)"
+  grep -iE '(^|/)(package\.json|pnpm-workspace\.yaml|lerna\.json|nx\.json|turbo\.json|rush\.json|go\.work|go\.mod|Cargo\.toml|pyproject\.toml|setup\.py|pom\.xml|(build|settings)\.gradle(\.kts)?|[^/]*\.sln|[^/]*\.csproj|Directory\.Build\.props|Dockerfile[^/]*|docker-compose[^/]*|compose\.ya?ml|\.gitlab-ci\.yml|Jenkinsfile|azure-pipelines\.ya?ml|commitlint\.config\.[^/]*|\.commitlintrc[^/]*|\.releaserc[^/]*|release\.config\.[^/]*|\.versionrc[^/]*|\.czrc|\.cz\.[^/]*|CHANGELOG\.md|AGENTS\.md|CLAUDE\.md)$|^\.(github/workflows|husky|claude|agents|gitlab)/|(^|/)migrations?/' "$TMP/files" \
+    | awk '{ if (match($0, /^.*\/?[Mm]igrations?\//)) print substr($0, 1, RLENGTH) "**"
+             else if (match($0, /^\.(claude|agents|husky|github\/workflows|gitlab)\//)) print substr($0, 1, RLENGTH) "**"
+             else print }' | sort -u > "$TMP/tooling"
+  head -n 200 "$TMP/tooling"
+  n=$(wc -l < "$TMP/tooling" | tr -d ' ')
+  [ "$n" -gt 200 ] && out "  ... $((n - 200)) more"
+  [ "$n" = 0 ] && out "None"
+
+  out "--- possibly generated folders (tracked files)"
+  awk -F/ '{ for (i = 1; i < NF; i++) if ($i ~ /^(dist|build|out|generated|gen|vendor|__snapshots__|coverage|bin|obj|target)$/) {
+               p = $1; for (j = 2; j <= i; j++) p = p "/" $j; c[p "/"]++; break } }
+    END { for (p in c) printf "%6d  %s\n", c[p], p }' "$TMP/files" | sort -k2 | head -n 50 > "$TMP/gen"
+  if [ -s "$TMP/gen" ]; then cat "$TMP/gen"; else out "None"; fi
+
+  out "--- recent commits (last 300, no merges): type counts; scope counts with the folders they touched most"
+  g log -300 --no-merges --name-only --format='@@%s' 2>/dev/null | awk '
+    /^@@/ { s = substr($0, 3); scope = "(none)"; type = "(not conventional)"
+      if (match(s, /^[A-Za-z]+(\([^)]*\))?!?:/)) {
+        h = substr(s, 1, RLENGTH); type = h; sub(/[(!:].*$/, "", type)
+        if (h ~ /\(/) { scope = h; sub(/^[^(]*\(/, "", scope); sub(/\)!?:$/, "", scope) }
+      } else scope = "(not conventional)"
+      tc[type]++; sc[scope]++; cur = scope; next }
+    NF { n = split($0, seg, "/"); u = (n >= 3) ? seg[1] "/" seg[2] "/" : (n == 2 ? seg[1] "/" : "(root files)"); f[cur SUBSEP u]++ }
+    END {
+      line = "types:"; for (t in tc) line = line " " t " " tc[t] ","; sub(/,$/, "", line); print line
+      for (s in sc) { line = sprintf("%5d  %s:", sc[s], s)
+        for (k = 1; k <= 3; k++) { best = ""; bv = 0
+          for (key in f) { split(key, kk, SUBSEP); if (kk[1] == s && !(key in used) && f[key] > bv) { bv = f[key]; best = key } }
+          if (best == "") break
+          used[best] = 1; split(best, kk, SUBSEP); line = line " " kk[2] " (" bv ")" }
+        print line } }' > "$TMP/scopes"
+  if [ -s "$TMP/scopes" ]; then head -n 1 "$TMP/scopes"; tail -n +2 "$TMP/scopes" | sort -rn | head -n 60; else out "None"; fi
+  out "--- last 15 commit subjects"
+  g log -15 --no-merges --format=%s 2>/dev/null || out "None"
+
+  out "--- .gitignore (root, without comments)"
+  if [ -f .gitignore ]; then grep -vE '^[[:space:]]*(#|$)' .gitignore | head -n 100; else out "None"; fi
 }
 
 cmd_stage() {
@@ -376,8 +431,9 @@ cmd_commit() {
 
 case "$cmd" in
   init) cmd_init ;;
+  survey) cmd_survey ;;
   stage) cmd_stage ;;
   plan) cmd_plan ;;
   commit) cmd_commit ;;
-  *) out "usage: lazy-commit.sh init|stage|plan|commit [options]"; exit 1 ;;
+  *) out "usage: lazy-commit.sh init|survey|stage|plan|commit [options]"; exit 1 ;;
 esac
