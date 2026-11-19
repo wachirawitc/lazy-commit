@@ -14,7 +14,12 @@ The two aliases run only when you type them. Claude never picks them on its own.
 
 ## Installation
 
-Copy the three skill folders into your personal Claude Code skills directory:
+Clone this repository, then copy the three skill folders from its root into your personal Claude Code skills directory:
+
+```bash
+git clone https://github.com/wachirawitc/lazy-commit.git
+cd lazy-commit
+```
 
 ```bash
 # macOS / Linux / Git Bash
@@ -36,7 +41,7 @@ The aliases call `lazy-commit` and need it installed at `~/.claude/skills/lazy-c
 
 | Option | Effect |
 |---|---|
-| `--init` | Creates `.agents/rules/git/commit-config.md` from the template and exits without committing |
+| `--init` | Creates `.agents/rules/git/commit-config.md` from the template and exits without committing. The optional path must be that same path, since it's the only place the skill reads the config |
 | `--auto-setup` | Creates `.agents/rules/git/commit-config.md` filled in for the current repository (scopes from its history, commitlint and release configs, generated folders, deployable projects) and exits without committing. Never changes an existing config |
 | `-f` | Commits right away without asking. Passing it counts as your approval |
 | `--skip-graphify` | Leaves changes under `graphify-out/` uncommitted |
@@ -62,11 +67,11 @@ The git steps run through `lazy-commit/scripts/lazy-commit.sh` (`stage`, `plan`,
 
 ### Safety
 
-- Refuses to commit on `main` or `master`, on a detached HEAD, or while a merge, rebase, cherry-pick or revert is unfinished.
+- Refuses to commit on `main` or `master`, on a detached HEAD, or while a merge, rebase, cherry-pick or revert is unfinished or a file has unresolved conflicts.
 - Blocks secret-looking paths: `.env`, `.env.*` (except `.env.example`), `*.pfx`, `*.p12`, `*.key`, `*.pem`, plus any patterns in the config.
 - Never uses `--no-verify`, `--amend`, `push`, `reset --hard`, `checkout -- .` or `clean`.
 - Never adds trailers such as `Co-Authored-By` or `Signed-off-by`, and never mentions AI in commit messages.
-- If a hook such as commitlint rejects a commit, the skill doesn't retry silently. It shows the hook output and proposes a fixed message.
+- If a hook such as commitlint rejects a commit, the skill doesn't retry silently. It shows the hook output and proposes a fixed message, and asks for approval even when you passed `-f`.
 
 ## Project config
 
@@ -78,13 +83,13 @@ Run `/lazy-commit --auto-setup` instead to get the same file already filled in f
 |---|---|---|
 | Message rules | Rules file: types, which types release, subject rules, header length | `@commitlint/config-conventional` with a 100-character limit; `feat`, `fix`, `perf` and `revert` release |
 | Grouping | Atomic paths, and the outside paths that join their commit | None |
-| Scopes | Path-to-scope table, release scopes, forbidden scopes | Kebab-case name per top-level area |
+| Scopes | Path-to-scope table, release scopes, forbidden scopes | Kebab-case name per area (the top-level folder, or the package or project folder inside it); no scope for root-level files |
 | Fixed headers | Paths that always get a fixed header | None |
 | Diff exclusions | Generated paths whose content diff is never read | Lockfiles, minified files, `graphify-out` |
 | Secrets | Extra secret patterns; whether secrets inside file contents may be committed | Built-in patterns only |
 | AI files | Scope whose commits may name agent or skill files | Commits that change only `AGENTS.md`, `CLAUDE.md`, `.claude/**` or `.agents/**` |
 | QA | Guidance and an example item for `QA:` bodies | None |
-| Deploy | How to find deployable projects, and the item format | Apps containing the changed paths, plus apps that depend on changed shared libraries |
+| Deploy | How to find deployable projects, and the item format | Apps containing the changed paths, plus apps that depend on changed shared libraries, with database migration scripts listed first |
 | Collapse | Directory unit for collapsing file lists longer than 20 files | Top-level directory |
 
 The config can add rules but can't loosen the safety rules or the approval step.
