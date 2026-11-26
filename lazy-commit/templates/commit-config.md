@@ -67,7 +67,7 @@ Default: none; the skill always blocks `.env`, `.env.*` (except `.env.example`),
 
 ## AI files
 
-<!-- The scope whose commits may name the agent, skill or rule files they change. Example: `ai-agents` (`.claude/**`, `AGENTS.md`, `CLAUDE.md`).
+<!-- The scope whose commits may name the agent, skill or rule files they change. Example: `ai-agents` (`.claude/**`, `.agents/**`, `AGENTS.md`, `CLAUDE.md`).
 Default: commits that change only AI agent files (`AGENTS.md`, `CLAUDE.md`, `.claude/**`, `.agents/**`). -->
 
 ## QA
