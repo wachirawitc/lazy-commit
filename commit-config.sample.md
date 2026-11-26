@@ -73,10 +73,10 @@ Example: `1) web, Orders page: filter by "Status" and check that only orders wit
 ## Deploy
 
 - A path under `apps/<app>/` → that app.
-- A path under `libs/**` → every app whose `package.json` depends on the changed library.
+- A path under `libs/<lib>/` → every app whose `apps/<app>/package.json` depends on that library's package (the `name` in `libs/<lib>/package.json`), directly or through another library.
 - A `db/migrations/**` path → an item to run that script on the target environment's database before deploying the apps; list it first.
 
-Item format: `<app> ("apps/<app>")`, or for a script: `run "db/migrations/<file>.sql" on the database`.
+Item format: `<app> ("apps/<app>")`, adding ` — via shared "<library>"` when only a library change makes the app deployable, or for a script: `run "db/migrations/<file>.sql" on the database`.
 
 ## Collapse
 
