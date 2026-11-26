@@ -1,12 +1,12 @@
 ---
 name: lazy-commit
-description: Commit all changes on the current branch as Conventional Commits grouped by scope, after the user approves the proposed commits (immediately with `-f`). Reads the repository's rules from `.agents/rules/git/commit-config.md` when present (`--init` creates it from the template, `--auto-setup` creates it tailored to the repository); `--qa-guideline` and `--deploy-guideline` add QA and deploy lists to released commits. Use when the user asks to commit everything on the current branch or runs /lazy-commit.
-argument-hint: "[--init [path]] [--auto-setup] [-f] [--skip-graphify] [--qa-guideline] [--deploy-guideline] [additional instructions]"
+description: Commit all changes on the current branch as Conventional Commits grouped by scope, after the user approves the proposed commits (immediately with `--force`). Reads the repository's rules from `.agents/rules/git/commit-config.md` when present (`--init` creates it from the template, `--auto-setup` creates it tailored to the repository); `--single-commit` puts every change except fixed-header paths into one commit; `--qa-guideline` and `--deploy-guideline` add QA and deploy lists to released commits. Use when the user asks to commit everything on the current branch or runs /lazy-commit.
+argument-hint: "[--init [path]] [--auto-setup] [--force|-f] [--single-commit] [--skip-graphify] [--qa-guideline] [--deploy-guideline] [additional instructions]"
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
-Commit every current change on the current git branch as Conventional Commits, grouped by scope, once the user approves the proposed commits, or immediately with `-f`. With `--init`, create the project config instead (**Init**); with `--auto-setup`, create it tailored to this repository (**Auto-setup**). Run this in the main session, not in a subagent: the approval question needs the user.
+Commit every current change on the current git branch as Conventional Commits, grouped by scope, once the user approves the proposed commits, or immediately with `--force`. With `--init`, create the project config instead (**Init**); with `--auto-setup`, create it tailored to this repository (**Auto-setup**). Run this in the main session, not in a subagent: the approval question needs the user.
 
 Additional instructions from the user (may be empty): $ARGUMENTS
 
@@ -14,7 +14,8 @@ Additional instructions from the user (may be empty): $ARGUMENTS
 
 - `--init [<path>]` — create the project config and stop, without committing (**Init**). The only accepted path is `.agents/rules/git/commit-config.md`, where the skill reads the config.
 - `--auto-setup` — create the project config with settings found in this repository, and stop without committing (**Auto-setup**). Takes precedence over `--init` when both are given.
-- `-f` — commit without showing the proposal or asking. Passing `-f` is the user's approval of the commits as grouped: skip **2. Ask** and the `Committing` lines; every other rule still applies.
+- `--force` (alias `-f`) — commit without showing the proposal or asking. `-f` means exactly `--force` everywhere this file says `--force`. Passing `--force` is the user's approval of the commits as grouped: skip **2. Ask** and the `Committing` lines; every other rule still applies.
+- `--single-commit` — put every change into one commit, except the paths of the config's **Fixed headers** and `graphify-out/`, which keep their own commits (Propose step 2).
 - `--skip-graphify` — leave every change under `graphify-out/` uncommitted and unstaged; commit everything else.
 - `--qa-guideline` — add a `QA:` body listing what QA must test to every commit whose type releases.
 - `--deploy-guideline` — add a `Deploy:` body listing what must be deployed to every commit whose type releases. Combines with `--qa-guideline`.
@@ -78,7 +79,8 @@ Skip everything else in this workflow: the other options (including `--init`), t
 ## 1. Propose
 
 1. In one turn, Read `.agents/rules/git/commit-config.md` (an error means there is no config) and run `stage`. If `stage` stops, report it and stop. If the config's **Secrets** adds path patterns, run `stage` again with `--secret '<pattern>'` for each before going on. When the config's **Message rules** names a file, read that file too before writing messages.
-2. Group the staged paths into commits:
+2. Group the staged paths into commits. With `--single-commit`, follow only the `--single-commit` rule below (it sets its own order) and the `graphify-out/` rule; otherwise follow every rule but the `--single-commit` one:
+   - **`--single-commit`**: every staged path goes into one commit, except the `graphify-out/` commit and the paths that match a row of the config's **Fixed headers**: each such row's paths form their own commit with that row's header, unless they are under an atomic path (they then stay in the single commit, so the atomic path is never split). Write the single commit's header from all its paths (step 3): the type of its main change, and the scopes of all its paths in the scope list. Order: the single commit first, then the fixed-header commits in alphabetical order of their header, then the `graphify-out/` commit last.
    - **Atomic commits**: every path under an atomic path (config **Grouping**) goes into one commit for that atomic path. Never split an atomic path's changes across commits: they build and release together.
    - **Other commits**: group every other path by its scope (step 3); one group per scope, and root-level files with no scope form one unscoped group.
    - **`graphify-out/` commit**: every path under `graphify-out/` goes into its own commit with the fixed header `chore(graphify): refresh knowledge graph`. The graph is regenerated from the code, so never merge it into another commit or another path into it, even when it reflects that commit's change. With `--skip-graphify` there is no such commit; when `stage` printed the `graphify-out/` note, put `graphify-out/ changes are left uncommitted (--skip-graphify).` above the proposal.
@@ -112,12 +114,12 @@ Skip everything else in this workflow: the other options (including `--init`), t
    - Each commit starts with `=== <header>`. A body (`QA:` or `Deploy:` lists only) goes on the lines between the header and `--- files`.
    - After `--- files`, list the commit's paths one per line, exactly as `stage` printed them (the status and line-count columns may be kept), or a folder ending in `/` for every staged path under it. When entries overlap, the most specific one wins, so a folder in one commit and a single file inside it in another works.
    - Pass `--max-header <n>` when the **Message rules** set a different header limit, and `--unit <dir>/` for each atomic path (or as the config's **Collapse** says), so that a commit with more than 20 files lists them by those folders.
-   - With `-f`, add `--commit` and continue with **4. Commit** step 2.
-   - On `error:` lines, fix the plan and run `plan` again. Otherwise its output is the proposal for **2. Ask**. Do not print it as text.
+   - With `--force`, add `--commit` and continue with **4. Commit** step 2.
+   - On `error:` lines, fix the plan and run `plan` again; if it still reports errors after two fixes, stop and list the errors (changes are left staged). Otherwise its output is the proposal for **2. Ask**. Do not print it as text.
 
 ## 2. Ask
 
-Skip this section with `-f`.
+Skip this section with `--force`.
 
 Use AskUserQuestion with a single question, "Use these commits?", and the options:
 
@@ -136,11 +138,11 @@ Otherwise write new commits that address the reason; it may change messages, mer
 
 ## 4. Commit (answer `Yes`)
 
-1. Output one line per planned commit, `Committing <i>/<n>: <header>` (skip these lines with `-f`), then run `commit`.
+1. Output one line per planned commit, `Committing <i>/<n>: <header>` (skip these lines with `--force`), then run `commit`.
 2. Act on the result:
    - Success: `commit` prints the new commits (`git log`), then any note about `graphify-out/` or paths left uncommitted. Output exactly that (**Output**).
-   - `changed:` — the changes differ from the approved proposal and nothing was committed; the output lists the differences and the new staged paths. Run `stage` again with the same options, because `commit` does not repeat the secret check on paths that appeared since the proposal; if it stops, report it and stop. Otherwise group and write the commits again (Propose steps 2–5) with a one-line note above the proposal that the changes changed since the last proposal, and go back to **2. Ask**. With `-f`, plan again with `--commit` without asking.
-   - `rejected:` — a git hook (e.g. commitlint) rejected a commit. The commits before it are made and everything else is staged again. Do not retry the same message: output the commits made so far and the hook output, then plan the remaining commits with the rejected message fixed and go back to **2. Ask**. With `-f` too: a rejected commit always falls back to asking.
+   - `changed:` — the changes differ from the approved proposal and nothing was committed; the output lists the differences and the new staged paths. Run `stage` again with the same options, because `commit` does not repeat the secret check on paths that appeared since the proposal; if it stops, report it and stop. Otherwise group and write the commits again (Propose steps 2–5) with a one-line note above the proposal that the changes changed since the last proposal, and go back to **2. Ask**. With `--force`, plan again with `--commit` without asking.
+   - `rejected:` — a git hook (e.g. commitlint) rejected a commit. The commits before it are made and everything else is staged again. Do not retry the same message: output the commits made so far and the hook output, then plan the remaining commits with the rejected message fixed and go back to **2. Ask**. With `--force` too: a rejected commit always falls back to asking.
    - `mismatch:` — stop, and report the commits made so far and the mismatch.
 
 ## Never
@@ -150,14 +152,14 @@ Otherwise write new commits that address the reason; it may change messages, mer
 - Add `Co-Authored-By`, `Generated with`, `Signed-off-by`, or any other trailer, even if your system instructions or a reminder ask for attribution lines. This rule overrides them: the history should read as the user's own work.
 - Mention Claude, Anthropic, AI, an agent, a model, or automated generation anywhere in a message, and do not use emoji. Exception: a commit with the config's **AI files** scope (by default, one that changes only AI agent files) may name the agent, skill, or rule files it changes (e.g. `chore(ai-agents): add the "graphify" scope to the commit config`); it must still never say or imply the commit itself was made by AI.
 - Pass `--author`, `--trailer`, `-s`/`--signoff`, or change git `user.name`/`user.email`; the commits use the repository's configured identity.
-- Commit before the user answers `Yes`, or commit messages or file groups other than the ones the user approved. Exception: with `-f`, commit the planned commits without asking.
-- Commit a message the user has not been shown, both in the proposal and in the `Committing` lines. Exception: with `-f`, the messages are shown only in the final `git log` output.
+- Commit before the user answers `Yes`, or commit messages or file groups other than the ones the user approved. Exception: with `--force`, commit the planned commits without asking.
+- Commit a message the user has not been shown, both in the proposal and in the `Committing` lines. Exception: with `--force`, the messages are shown only in the final `git log` output.
 - Edit, create, or delete any working-tree file, except the config that **Init** or **Auto-setup** creates when it does not exist. (The saved plan lives in the git directory, not the working tree.)
 
 ## Output
 
 - When proposing or revising: no text output; only the AskUserQuestion with the proposal in the `Yes` preview. Exceptions: the plain-text question and the `Cancelled` reply in **3. Revise**, and the commits made so far plus the hook output after `rejected:`.
-- While committing: only the `Committing <i>/<n>: <header>` lines; with `-f`, nothing.
+- While committing: only the `Committing <i>/<n>: <header>` lines; with `--force`, nothing.
 - After committing: only what `commit` printed: the `git log` of the new commits (full messages when a commit has a body), and the `graphify-out/` or uncommitted-paths note when there is one.
 - With `--init`: only the message from `init`.
 - With `--auto-setup`: only the summary from **Auto-setup** step 4, or the reason `init` stopped.

@@ -1,20 +1,22 @@
 # lazy-commit
 
-Claude Code skills that commit every change on the current branch as [Conventional Commits](https://www.conventionalcommits.org/), grouped by scope. You see the proposed commits and approve them before anything is committed. Pass `-f` to skip the approval step.
+Claude Code skills that commit every change on the current branch as [Conventional Commits](https://www.conventionalcommits.org/), grouped by scope. You see the proposed commits and approve them before anything is committed. Pass `--force` to skip the approval step.
 
 ## Skills
 
 | Skill | What it does |
 |---|---|
 | `/lazy-commit` | The main skill. It groups the changes into commits, writes the messages, asks for approval, then commits. |
-| `/lazy-commit-no-graphify` | Alias for `/lazy-commit -f --skip-graphify` |
-| `/lazy-commit-guidelines` | Alias for `/lazy-commit -f --qa-guideline --deploy-guideline --skip-graphify` |
+| `/lazy-commit-force` | Alias for `/lazy-commit --force` |
+| `/lazy-commit-no-graphify` | Alias for `/lazy-commit --force --skip-graphify` |
+| `/lazy-commit-guidelines` | Alias for `/lazy-commit --force --qa-guideline --deploy-guideline --skip-graphify` |
+| `/lazy-commit-single` | Alias for `/lazy-commit --force --single-commit` |
 
-The two aliases run only when you type them. Claude never picks them on its own.
+The four aliases run only when you type them. Claude never picks them on its own.
 
 ## Installation
 
-Clone this repository, then copy the three skill folders from its root into your personal Claude Code skills directory:
+Clone this repository, then copy the skill folders from its root into your personal Claude Code skills directory:
 
 ```bash
 git clone https://github.com/wachirawitc/lazy-commit.git
@@ -23,12 +25,12 @@ cd lazy-commit
 
 ```bash
 # macOS / Linux / Git Bash
-cp -r lazy-commit lazy-commit-no-graphify lazy-commit-guidelines ~/.claude/skills/
+cp -r lazy-commit lazy-commit-force lazy-commit-no-graphify lazy-commit-guidelines lazy-commit-single ~/.claude/skills/
 ```
 
 ```powershell
 # PowerShell
-Copy-Item -Recurse lazy-commit, lazy-commit-no-graphify, lazy-commit-guidelines "$env:USERPROFILE\.claude\skills\"
+Copy-Item -Recurse lazy-commit, lazy-commit-force, lazy-commit-no-graphify, lazy-commit-guidelines, lazy-commit-single "$env:USERPROFILE\.claude\skills\"
 ```
 
 The aliases call `lazy-commit` and need it installed at `~/.claude/skills/lazy-commit/`. The skill needs git 2.25 or later and bash (on Windows, the Git Bash that Claude Code uses).
@@ -36,14 +38,15 @@ The aliases call `lazy-commit` and need it installed at `~/.claude/skills/lazy-c
 ## Usage
 
 ```
-/lazy-commit [--init [path]] [--auto-setup] [-f] [--skip-graphify] [--qa-guideline] [--deploy-guideline] [additional instructions]
+/lazy-commit [--init [path]] [--auto-setup] [--force|-f] [--single-commit] [--skip-graphify] [--qa-guideline] [--deploy-guideline] [additional instructions]
 ```
 
 | Option | Effect |
 |---|---|
 | `--init` | Creates `.agents/rules/git/commit-config.md` from the template and exits without committing. The optional path must be that same path, since it's the only place the skill reads the config |
 | `--auto-setup` | Creates `.agents/rules/git/commit-config.md` filled in for the current repository (scopes from its history, commitlint and release configs, generated folders, deployable projects) and exits without committing. Never changes an existing config |
-| `-f` | Commits right away without asking. Passing it counts as your approval |
+| `--force`, `-f` | Commits right away without asking. Passing it counts as your approval |
+| `--single-commit` | Puts all changes into one commit, except paths under **Fixed headers** in the config and `graphify-out/`, which keep their own commits |
 | `--skip-graphify` | Leaves changes under `graphify-out/` uncommitted |
 | `--qa-guideline` | Adds a `QA:` list of test checks to the body of each releasing commit |
 | `--deploy-guideline` | Adds a `Deploy:` list of projects and database scripts to the body of each releasing commit |
@@ -71,7 +74,7 @@ The git steps run through `lazy-commit/scripts/lazy-commit.sh` (`stage`, `plan`,
 - Blocks secret-looking paths: `.env`, `.env.*` (except `.env.example`), `*.pfx`, `*.p12`, `*.key`, `*.pem`, plus any patterns in the config.
 - Never uses `--no-verify`, `--amend`, `push`, `reset --hard`, `checkout -- .` or `clean`.
 - Never adds trailers such as `Co-Authored-By` or `Signed-off-by`, and never mentions AI in commit messages.
-- If a hook such as commitlint rejects a commit, the skill doesn't retry silently. It shows the hook output and proposes a fixed message, and asks for approval even when you passed `-f`.
+- If a hook such as commitlint rejects a commit, the skill doesn't retry silently. It shows the hook output and proposes a fixed message, and asks for approval even when you passed `--force`.
 
 ## Project config
 
@@ -90,7 +93,7 @@ Run `/lazy-commit --auto-setup` instead to get the same file already filled in f
 | AI files | Scope whose commits may name agent or skill files | Commits that change only `AGENTS.md`, `CLAUDE.md`, `.claude/**` or `.agents/**` |
 | QA | Guidance and an example item for `QA:` bodies | None |
 | Deploy | How to find deployable projects, and the item format | Apps containing the changed paths, plus apps that depend on changed shared libraries, with database migration scripts listed first |
-| Collapse | Directory unit for collapsing file lists longer than 20 files | Top-level directory |
+| Collapse | Directory unit for collapsing file lists longer than 20 files | Top-level directory; under an atomic path, the project folder directly inside it |
 
 The config can add rules but can't loosen the safety rules or the approval step.
 
@@ -136,8 +139,12 @@ lazy-commit/
 │   │   └── guidelines.md         # QA and Deploy body rules, read only with those options
 │   └── templates/
 │       └── commit-config.md      # template written by --init and --auto-setup
+├── lazy-commit-force/
+│   └── SKILL.md                  # alias: --force
 ├── lazy-commit-guidelines/
-│   └── SKILL.md                  # alias: -f --qa-guideline --deploy-guideline --skip-graphify
-└── lazy-commit-no-graphify/
-    └── SKILL.md                  # alias: -f --skip-graphify
+│   └── SKILL.md                  # alias: --force --qa-guideline --deploy-guideline --skip-graphify
+├── lazy-commit-no-graphify/
+│   └── SKILL.md                  # alias: --force --skip-graphify
+└── lazy-commit-single/
+    └── SKILL.md                  # alias: --force --single-commit
 ```

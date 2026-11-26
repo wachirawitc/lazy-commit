@@ -1,11 +1,11 @@
 ---
 name: lazy-commit-no-graphify
-description: Alias for `/lazy-commit -f --skip-graphify` — commit all changes on the current branch immediately, without the approval question, leaving `graphify-out/` uncommitted. Use only when the user runs /lazy-commit-no-graphify.
+description: Alias for `/lazy-commit --force --skip-graphify` — commit all changes on the current branch immediately, without the approval question, leaving `graphify-out/` uncommitted. Use only when the user runs /lazy-commit-no-graphify.
 argument-hint: "[additional instructions]"
 disable-model-invocation: true
 ---
 
-Call the Skill tool with the skill `lazy-commit` and the args `-f --skip-graphify $ARGUMENTS`, and follow the skill it loads exactly, as if the user had typed `/lazy-commit -f --skip-graphify $ARGUMENTS`. Running this alias counts as the user's approval, just as passing `-f` does.
+Call the Skill tool with the skill `lazy-commit` and the args `--force --skip-graphify $ARGUMENTS`, and follow the skill it loads exactly, as if the user had typed `/lazy-commit --force --skip-graphify $ARGUMENTS`. Running this alias counts as the user's approval, just as passing `--force` does.
 
 Output nothing of your own before, between or after its steps; the user sees only what that skill tells you to output.
 

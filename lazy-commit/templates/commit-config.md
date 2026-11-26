@@ -11,7 +11,7 @@ Repository settings for `/lazy-commit`. The skill reads the sections below by na
 ## Message rules
 
 <!-- The file with your commit message rules: allowed types, which types release, subject rules, header length limit. Example: `.agents/rules/git/lint-rules.md`.
-Default: Conventional Commits 1.0.0 types; `feat`, `fix`, `perf` and `revert` release; lowercase imperative subject without a final period; header of at most 100 characters. -->
+Default: the `@commitlint/config-conventional` types (`feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`); `feat`, `fix`, `perf` and `revert` release; lowercase imperative subject without a final period; header of at most 100 characters. -->
 
 ## Grouping
 
